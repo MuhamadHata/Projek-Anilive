@@ -1,0 +1,287 @@
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0D0D1A;--surface:#1A1A2E;--card:#1E1E35;--accent:#6C63FF;--accent2:#FF6B6B;--text:#FFFFFF;--muted:#9E9EBF;--border:#2A2A45;--green:#4CAF50;--gold:#FFC107;--radius:12px}
+  body{background:transparent;font-family:'Nunito Sans',var(--font-sans),sans-serif;color:var(--text)}
+  .dual{display:flex;gap:16px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .phone{width:340px;background:var(--bg);border-radius:28px;border:2px solid var(--border);overflow:hidden}
+  .topbar{padding:12px 14px 10px;background:var(--bg)}
+  .search-wrap{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px}
+  .search-wrap i{color:var(--muted);font-size:18px}
+  .search-wrap input{background:none;border:none;color:var(--text);font-size:14px;outline:none;flex:1}
+  .filter-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .filter-row::-webkit-scrollbar{display:none}
+  .filter-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;border:1px solid var(--border);color:var(--muted);cursor:pointer;background:var(--card)}
+  .filter-chip.active{background:rgba(108,99,255,.2);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .content{padding:12px;max-height:480px;overflow-y:auto;scrollbar-width:none}
+  .content::-webkit-scrollbar{display:none}
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .section-title{font-size:13px;font-weight:700}
+  .see-all{font-size:11px;color:var(--accent);cursor:pointer}
+  .anime-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+  .anime-card{border-radius:10px;background:var(--card);border:1px solid var(--border);overflow:hidden;cursor:pointer}
+  .anime-thumb{height:90px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative}
+  .anime-thumb.jjk{background:linear-gradient(135deg,#1a0a2e,#0d1a2e)}
+  .anime-thumb.solo{background:linear-gradient(135deg,#0a1a0a,#0d2014)}
+  .anime-thumb.spy{background:linear-gradient(135deg,#1a0a0a,#2e1a0a)}
+  .anime-thumb.aot{background:linear-gradient(135deg,#2e0a0a,#1a0a0a)}
+  .anime-thumb.vls{background:linear-gradient(135deg,#0a0a1a,#1a0a2e)}
+  .anime-thumb.one{background:linear-gradient(135deg,#2e1a00,#1a0a00)}
+  .thumb-badge{position:absolute;top:4px;right:4px;font-size:9px;padding:2px 5px;border-radius:6px;font-weight:700}
+  .thumb-badge.airing{background:rgba(255,107,107,.85);color:#fff}
+  .thumb-badge.done{background:rgba(76,175,80,.85);color:#fff}
+  .anime-meta{padding:6px 8px}
+  .anime-name{font-size:11px;font-weight:600;line-height:1.2;margin-bottom:2px}
+  .anime-score{font-size:10px;color:var(--gold)}
+  .big-card{border-radius:var(--radius);background:var(--card);border:1px solid var(--border);overflow:hidden;margin-bottom:8px;cursor:pointer}
+  .big-hero{height:120px;display:flex;align-items:center;justify-content:center;font-size:60px;position:relative}
+  .big-hero.featured{background:linear-gradient(135deg,#1a0533,#0d1a0a)}
+  .big-info{padding:10px 12px}
+  .big-title{font-size:14px;font-weight:700;margin-bottom:3px}
+  .big-meta{font-size:11px;color:var(--muted);display:flex;gap:10px;align-items:center}
+  .big-badge{font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(108,99,255,.2);color:var(--accent);font-weight:600}
+  .genre-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .genre-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+  .notif-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg)}
+  .notif-list{max-height:510px;overflow-y:auto;scrollbar-width:none}
+  .notif-list::-webkit-scrollbar{display:none}
+  .notif-group-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 14px 4px}
+  .notif-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(42,42,69,.5);cursor:pointer;transition:background .15s}
+  .notif-item:hover{background:rgba(255,255,255,.03)}
+  .notif-item.unread{background:rgba(108,99,255,.06)}
+  .notif-item.unread::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+  .notif-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;position:relative}
+  .notif-type-icon{position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);font-size:9px}
+  .notif-type-icon.like{background:var(--accent2)}
+  .notif-type-icon.reply{background:var(--accent)}
+  .notif-type-icon.follow{background:var(--green)}
+  .notif-type-icon.status{background:var(--gold)}
+  .notif-body{flex:1}
+  .notif-text{font-size:12px;line-height:1.4;color:var(--muted)}
+  .notif-text b{color:var(--text)}
+  .notif-time{font-size:10px;color:var(--muted);margin-top:3px}
+  .notif-thumb{width:42px;height:52px;border-radius:6px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border);flex-shrink:0}
+  .unread-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;flex-shrink:0;margin-top:5px}
+  .follow-btn{padding:6px 12px;border-radius:20px;border:1px solid var(--accent);color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .follow-btn.following{background:var(--accent);color:#fff;border:none}
+</style>
+
+<div class="dual">
+  <div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">🔍 Halaman Explore</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="search-wrap">
+          <i class="ti ti-search" aria-hidden="true"></i>
+          <input placeholder="Cari anime, genre, studio..." readonly>
+          <i class="ti ti-adjustments-horizontal" style="color:var(--accent);font-size:18px" aria-hidden="true"></i>
+        </div>
+        <div class="filter-row">
+          <span class="filter-chip active">Semua</span>
+          <span class="filter-chip">Airing</span>
+          <span class="filter-chip">Selesai</span>
+          <span class="filter-chip">Movie</span>
+          <span class="filter-chip">OVA</span>
+          <span class="filter-chip">Action</span>
+          <span class="filter-chip">Romance</span>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="section-head">
+          <span class="section-title">🔥 Trending Sekarang</span>
+          <span class="see-all">Lihat semua</span>
+        </div>
+        <div class="anime-grid">
+          <div class="anime-card">
+            <div class="anime-thumb jjk">🧊<span class="thumb-badge airing">Airing</span></div>
+            <div class="anime-meta"><div class="anime-name">Jujutsu Kaisen S3</div><div class="anime-score">★ 9.4</div></div>
+          </div>
+          <div class="anime-card">
+            <div class="anime-thumb solo">🌊<span class="thumb-badge done">Tamat</span></div>
+            <div class="anime-meta"><div class="anime-name">Solo Leveling S2</div><div class="anime-score">★ 9.1</div></div>
+          </div>
+          <div class="anime-card">
+            <div class="anime-thumb spy">🔫<span class="thumb-badge airing">Airing</span></div>
+            <div class="anime-meta"><div class="anime-name">Spy x Family S3</div><div class="anime-score">★ 8.9</div></div>
+          </div>
+          <div class="anime-card">
+            <div class="anime-thumb aot">🗡️<span class="thumb-badge done">Tamat</span></div>
+            <div class="anime-meta"><div class="anime-name">Attack on Titan</div><div class="anime-score">★ 9.0</div></div>
+          </div>
+          <div class="anime-card">
+            <div class="anime-thumb vls">⚡<span class="thumb-badge airing">Airing</span></div>
+            <div class="anime-meta"><div class="anime-name">Vinland Saga S3</div><div class="anime-score">★ 9.3</div></div>
+          </div>
+          <div class="anime-card">
+            <div class="anime-thumb one">🏴‍☠️<span class="thumb-badge airing">Airing</span></div>
+            <div class="anime-meta"><div class="anime-name">One Piece</div><div class="anime-score">★ 9.2</div></div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <span class="section-title">⭐ Top Rated Sepanjang Masa</span>
+          <span class="see-all">Lihat semua</span>
+        </div>
+
+        <div class="big-card">
+          <div class="big-hero featured">🧬</div>
+          <div class="big-info">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div class="big-title">Fullmetal Alchemist: Brotherhood</div>
+            </div>
+            <div class="big-meta">
+              <span>★ 9.8</span>
+              <span>•</span>
+              <span>64 Ep</span>
+              <span>•</span>
+              <span>2009</span>
+              <span class="big-badge" style="margin-left:auto">Tamat</span>
+            </div>
+            <div class="genre-row">
+              <span class="genre-tag">Action</span>
+              <span class="genre-tag">Adventure</span>
+              <span class="genre-tag">Drama</span>
+              <span class="genre-tag">Fantasy</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="big-card">
+          <div class="big-hero" style="background:linear-gradient(135deg,#0a1a2e,#0d0a2e)">🎭</div>
+          <div class="big-info">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div class="big-title">Steins;Gate</div>
+            </div>
+            <div class="big-meta">
+              <span>★ 9.7</span>
+              <span>•</span>
+              <span>24 Ep</span>
+              <span>•</span>
+              <span>2011</span>
+              <span class="big-badge" style="margin-left:auto">Tamat</span>
+            </div>
+            <div class="genre-row">
+              <span class="genre-tag">Sci-Fi</span>
+              <span class="genre-tag">Thriller</span>
+              <span class="genre-tag">Drama</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">🔔 Notifikasi</div>
+    <div class="phone">
+      <div class="notif-header">
+        <div style="font-size:18px;font-weight:700">Notifikasi</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="font-size:11px;color:var(--accent);cursor:pointer">Tandai semua dibaca</span>
+          <i class="ti ti-settings" style="font-size:20px;color:var(--muted)" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="notif-list">
+        <div class="notif-group-label">Baru</div>
+
+        <div class="notif-item unread" style="position:relative">
+          <div class="notif-avatar" style="background:var(--accent)">R
+            <div class="notif-type-icon like">❤</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>Risa_K</b> menyukai review Anda untuk <b>Attack on Titan</b></div>
+            <div class="notif-time">5 menit lalu</div>
+          </div>
+          <div class="notif-thumb">🗡️</div>
+          <div class="unread-dot"></div>
+        </div>
+
+        <div class="notif-item unread" style="position:relative">
+          <div class="notif-avatar" style="background:var(--accent2)">A
+            <div class="notif-type-icon reply">↩</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>AnimeHolic</b> membalas komentar Anda: <i>"Setuju banget! Ereh arc paling..."</i></div>
+            <div class="notif-time">12 menit lalu</div>
+          </div>
+          <div class="notif-thumb">🗡️</div>
+          <div class="unread-dot"></div>
+        </div>
+
+        <div class="notif-item unread" style="position:relative">
+          <div class="notif-avatar" style="background:#7b68ee">D
+            <div class="notif-type-icon follow">+</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>DarkFang_ID</b> mulai mengikuti Anda</div>
+            <div class="notif-time">34 menit lalu</div>
+          </div>
+          <div class="follow-btn following">Mengikuti</div>
+          <div class="unread-dot"></div>
+        </div>
+
+        <div class="notif-item unread" style="position:relative">
+          <div class="notif-avatar" style="background:var(--green)">S
+            <div class="notif-type-icon status" style="font-size:8px">🎌</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>SakuraChan</b> baru selesai menonton <b>Demon Slayer: Mugen Train</b> — Rating 9.5 ⭐</div>
+            <div class="notif-time">1 jam lalu</div>
+          </div>
+          <div class="notif-thumb">⚔️</div>
+          <div class="unread-dot"></div>
+        </div>
+
+        <div class="notif-group-label">Kemarin</div>
+
+        <div class="notif-item">
+          <div class="notif-avatar" style="background:#5c6bc0">K
+            <div class="notif-type-icon like">❤</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>KuroNeko99</b> dan <b>47 orang lainnya</b> menyukai review Anda untuk <b>Jujutsu Kaisen</b></div>
+            <div class="notif-time">Kemarin, 20:15</div>
+          </div>
+          <div class="notif-thumb">🧊</div>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-avatar" style="background:var(--accent)">R
+            <div class="notif-type-icon reply">↩</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>Risa_K</b> membalas komentar Anda di Live Chat <b>Solo Leveling</b></div>
+            <div class="notif-time">Kemarin, 15:32</div>
+          </div>
+          <div class="notif-thumb">🌊</div>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-avatar" style="background:#ef5350">O
+            <div class="notif-type-icon follow">+</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>OtakuBro</b> dan <b>3 orang lainnya</b> mulai mengikuti Anda</div>
+            <div class="notif-time">Kemarin, 11:00</div>
+          </div>
+          <div class="follow-btn">Ikuti Balik</div>
+        </div>
+
+        <div class="notif-group-label">2 Hari Lalu</div>
+
+        <div class="notif-item">
+          <div class="notif-avatar" style="background:var(--gold);color:#000">B
+            <div class="notif-type-icon like">❤</div>
+          </div>
+          <div class="notif-body">
+            <div class="notif-text"><b>BangsaNgopi</b> menyukai status "selesai nonton" Anda — <b>Vinland Saga</b></div>
+            <div class="notif-time">2 hari lalu, 09:45</div>
+          </div>
+          <div class="notif-thumb">⚡</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

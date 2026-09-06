@@ -1,0 +1,247 @@
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0D0D1A;--surface:#1A1A2E;--card:#1E1E35;--accent:#6C63FF;--accent2:#FF6B6B;--text:#FFFFFF;--muted:#9E9EBF;--border:#2A2A45;--green:#4CAF50;--gold:#FFC107;--radius:12px}
+  body{background:transparent;font-family:'Nunito Sans',var(--font-sans),sans-serif;color:var(--text)}
+  .phone{width:360px;background:var(--bg);border-radius:32px;border:2px solid var(--border);overflow:hidden;margin:0 auto;position:relative}
+  .status-bar{background:var(--bg);padding:10px 20px 4px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted)}
+  .nav-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg);padding:0 16px}
+  .tab{padding:10px 12px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .feed{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto;scrollbar-width:none}
+  .feed::-webkit-scrollbar{display:none}
+  .story-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+  .story-row::-webkit-scrollbar{display:none}
+  .story-item{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .story-ring{width:52px;height:52px;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center}
+  .story-avatar{width:46px;height:46px;border-radius:50%;background:var(--card);border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:16px}
+  .story-label{font-size:10px;color:var(--muted);width:54px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .feed-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:10px;padding:12px 12px 8px}
+  .avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0}
+  .avatar.coral{background:var(--accent2)}
+  .avatar.green{background:var(--green)}
+  .meta{flex:1}
+  .username{font-size:13px;font-weight:600}
+  .time{font-size:11px;color:var(--muted)}
+  .action-badge{background:rgba(108,99,255,.15);color:var(--accent);font-size:10px;padding:3px 8px;border-radius:20px;white-space:nowrap}
+  .action-badge.done{background:rgba(76,175,80,.15);color:var(--green)}
+  .anime-content{display:flex;gap:10px;padding:0 12px 10px}
+  .anime-cover{width:56px;height:80px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid var(--border)}
+  .anime-info{flex:1}
+  .anime-title{font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.3}
+  .stars{display:flex;gap:2px;align-items:center;margin-bottom:5px}
+  .star{font-size:11px}
+  .score{font-size:12px;font-weight:600;color:var(--gold);margin-left:4px}
+  .caption{font-size:12px;color:var(--muted);line-height:1.4}
+  .card-actions{display:flex;border-top:1px solid var(--border);padding:8px 12px;gap:0}
+  .action-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--muted);padding:6px;border-radius:8px;cursor:pointer;transition:all .2s}
+  .action-btn:hover{background:var(--surface);color:var(--text)}
+  .action-btn.liked{color:var(--accent2)}
+  .action-btn i{font-size:15px}
+  .trending-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:12px}
+  .section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+  .trend-list{display:flex;flex-direction:column;gap:8px}
+  .trend-item{display:flex;align-items:center;gap:10px}
+  .trend-num{width:20px;font-size:13px;font-weight:600;color:var(--accent);text-align:center}
+  .trend-cover{width:36px;height:50px;border-radius:6px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid var(--border)}
+  .trend-info{flex:1}
+  .trend-title{font-size:12px;font-weight:600;line-height:1.3}
+  .trend-meta{font-size:11px;color:var(--muted)}
+  .bottom-nav{display:flex;background:var(--surface);border-top:1px solid var(--border);padding:8px 0}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--muted);font-size:10px;padding:4px 0;transition:all .2s}
+  .nav-item.active{color:var(--accent)}
+  .nav-item i{font-size:22px}
+  .nav-item.post-btn{position:relative}
+  .post-fab{width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;margin-top:-18px;border:3px solid var(--bg);box-shadow:0 4px 12px rgba(108,99,255,.4)}
+  .post-fab i{font-size:20px;color:#fff}
+  .notif-dot{width:7px;height:7px;background:var(--accent2);border-radius:50%;position:absolute;top:4px;right:16px;border:1.5px solid var(--surface)}
+</style>
+
+<div class="phone">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span style="font-size:14px;letter-spacing:1px">AniTrack</span>
+    <span>📶 🔋</span>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;background:var(--bg)">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px">AniTrack</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <i class="ti ti-search" style="font-size:22px;color:var(--muted)" aria-hidden="true"></i>
+      <div style="position:relative">
+        <i class="ti ti-bell" style="font-size:22px;color:var(--muted)" aria-hidden="true"></i>
+        <div class="notif-dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <div class="tab active">Feed Teman</div>
+    <div class="tab">Feed Global</div>
+    <div class="tab">Trending</div>
+  </div>
+
+  <div class="feed">
+    <div class="story-row">
+      <div class="story-item">
+        <div class="story-ring"><div class="story-avatar">🌟</div></div>
+        <span class="story-label">Status Anda</span>
+      </div>
+      <div class="story-item">
+        <div class="story-ring"><div class="story-avatar">🎌</div></div>
+        <span class="story-label">Risa_K</span>
+      </div>
+      <div class="story-item">
+        <div class="story-ring"><div class="story-avatar">⚔️</div></div>
+        <span class="story-label">OtakuBro</span>
+      </div>
+      <div class="story-item">
+        <div class="story-ring"><div class="story-avatar">🌸</div></div>
+        <span class="story-label">SakuraCh</span>
+      </div>
+      <div class="story-item">
+        <div class="story-ring"><div class="story-avatar">🔥</div></div>
+        <span class="story-label">Haikal99</span>
+      </div>
+    </div>
+
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="avatar">R</div>
+        <div class="meta">
+          <div class="username">Risa_K <span style="font-weight:400;color:var(--muted)">baru selesai nonton</span></div>
+          <div class="time">5 menit lalu</div>
+        </div>
+        <div class="action-badge done">✓ Selesai</div>
+      </div>
+      <div class="anime-content">
+        <div class="anime-cover">⚔️</div>
+        <div class="anime-info">
+          <div class="anime-title">Demon Slayer: Kimetsu no Yaiba</div>
+          <div class="stars">
+            <span class="star" style="color:var(--gold)">★★★★★</span>
+            <span class="score">9.2</span>
+          </div>
+          <div class="caption">"OST-nya bikin merinding! Nezuko-chan paling kawaii 🥺"</div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <div class="action-btn liked"><i class="ti ti-heart-filled" aria-hidden="true"></i> 47</div>
+        <div class="action-btn"><i class="ti ti-message-circle" aria-hidden="true"></i> 12</div>
+        <div class="action-btn"><i class="ti ti-share" aria-hidden="true"></i></div>
+      </div>
+    </div>
+
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="avatar coral">A</div>
+        <div class="meta">
+          <div class="username">AnimeHolic <span style="font-weight:400;color:var(--muted)">menulis review</span></div>
+          <div class="time">23 menit lalu</div>
+        </div>
+        <div class="action-badge">✍️ Review</div>
+      </div>
+      <div class="anime-content">
+        <div class="anime-cover">🔫</div>
+        <div class="anime-info">
+          <div class="anime-title">Spy x Family Season 2</div>
+          <div class="stars">
+            <span class="star" style="color:var(--gold)">★★★★☆</span>
+            <span class="score">8.7</span>
+          </div>
+          <div class="caption">"Plot twist di episode 8 gak terduga banget. Loid Forger best character!"</div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <div class="action-btn"><i class="ti ti-heart" aria-hidden="true"></i> 28</div>
+        <div class="action-btn"><i class="ti ti-message-circle" aria-hidden="true"></i> 9</div>
+        <div class="action-btn"><i class="ti ti-share" aria-hidden="true"></i></div>
+      </div>
+    </div>
+
+    <div class="trending-card">
+      <div class="section-title">🔥 Trending minggu ini</div>
+      <div class="trend-list">
+        <div class="trend-item">
+          <span class="trend-num">1</span>
+          <div class="trend-cover">🧊</div>
+          <div class="trend-info">
+            <div class="trend-title">Jujutsu Kaisen S3</div>
+            <div class="trend-meta">★ 9.4 · 1.2k review</div>
+          </div>
+          <span style="font-size:11px;background:rgba(255,107,107,.15);color:var(--accent2);padding:3px 8px;border-radius:20px">Airing</span>
+        </div>
+        <div class="trend-item">
+          <span class="trend-num">2</span>
+          <div class="trend-cover">🌊</div>
+          <div class="trend-info">
+            <div class="trend-title">Solo Leveling S2</div>
+            <div class="trend-meta">★ 9.1 · 876 review</div>
+          </div>
+          <span style="font-size:11px;background:rgba(76,175,80,.15);color:var(--green);padding:3px 8px;border-radius:20px">Selesai</span>
+        </div>
+        <div class="trend-item">
+          <span class="trend-num">3</span>
+          <div class="trend-cover">⚡</div>
+          <div class="trend-info">
+            <div class="trend-title">Vinland Saga S3</div>
+            <div class="trend-meta">★ 9.3 · 654 review</div>
+          </div>
+          <span style="font-size:11px;background:rgba(108,99,255,.15);color:var(--accent);padding:3px 8px;border-radius:20px">Segera</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="avatar green">H</div>
+        <div class="meta">
+          <div class="username">Haikal99 <span style="font-weight:400;color:var(--muted)">memberi rating</span></div>
+          <div class="time">1 jam lalu</div>
+        </div>
+        <div class="action-badge">⭐ Rating</div>
+      </div>
+      <div class="anime-content">
+        <div class="anime-cover">🗡️</div>
+        <div class="anime-info">
+          <div class="anime-title">Attack on Titan: The Final Season</div>
+          <div class="stars">
+            <span class="star" style="color:var(--gold)">★★★★★</span>
+            <span class="score">10.0</span>
+          </div>
+          <div class="caption">"Perfect. Nothing to say. Just watch it."</div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <div class="action-btn"><i class="ti ti-heart" aria-hidden="true"></i> 103</div>
+        <div class="action-btn"><i class="ti ti-message-circle" aria-hidden="true"></i> 31</div>
+        <div class="action-btn"><i class="ti ti-share" aria-hidden="true"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <i class="ti ti-home" aria-hidden="true"></i>
+      <span>Home</span>
+    </div>
+    <div class="nav-item">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <span>Explore</span>
+    </div>
+    <div class="nav-item post-btn">
+      <div class="post-fab"><i class="ti ti-plus" aria-hidden="true"></i></div>
+      <span style="margin-top:6px">Post</span>
+    </div>
+    <div class="nav-item" style="position:relative">
+      <i class="ti ti-bell" aria-hidden="true"></i>
+      <div class="notif-dot" style="top:4px;right:20px"></div>
+      <span>Notif</span>
+    </div>
+    <div class="nav-item">
+      <i class="ti ti-user" aria-hidden="true"></i>
+      <span>Profil</span>
+    </div>
+  </div>
+</div>

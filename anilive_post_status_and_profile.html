@@ -1,0 +1,257 @@
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0D0D1A;--surface:#1A1A2E;--card:#1E1E35;--accent:#6C63FF;--accent2:#FF6B6B;--text:#FFFFFF;--muted:#9E9EBF;--border:#2A2A45;--green:#4CAF50;--gold:#FFC107;--radius:12px}
+  body{background:transparent;font-family:'Nunito Sans',var(--font-sans),sans-serif;color:var(--text)}
+  .dual{display:flex;gap:16px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .phone{width:340px;background:var(--bg);border-radius:28px;border:2px solid var(--border);overflow:hidden}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border)}
+  .back{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center}
+  .body{padding:16px;display:flex;flex-direction:column;gap:12px;max-height:500px;overflow-y:auto;scrollbar-width:none}
+  .body::-webkit-scrollbar{display:none}
+  .section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+  .search-box i{color:var(--muted);font-size:18px}
+  .search-box input{background:none;border:none;color:var(--text);font-size:13px;outline:none;flex:1}
+  .anime-result{display:flex;align-items:center;gap:10px;background:rgba(108,99,255,.08);border:1.5px solid var(--accent);border-radius:10px;padding:10px 12px}
+  .ar-cover{width:44px;height:60px;border-radius:6px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:22px}
+  .ar-info{flex:1}
+  .ar-title{font-size:13px;font-weight:600}
+  .ar-sub{font-size:11px;color:var(--muted)}
+  .check-icon{color:var(--accent);font-size:20px}
+  .status-options{display:flex;gap:8px}
+  .status-opt{flex:1;border-radius:10px;border:1.5px solid var(--border);padding:10px 8px;text-align:center;cursor:pointer;transition:all .2s}
+  .status-opt.active{border-color:var(--green);background:rgba(76,175,80,.1)}
+  .status-opt .opt-icon{font-size:22px;margin-bottom:4px}
+  .status-opt .opt-label{font-size:11px;color:var(--muted)}
+  .status-opt.active .opt-label{color:var(--green);font-weight:600}
+  .rating-section{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:12px}
+  .rating-title{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .stars-row{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
+  .star-btn{font-size:26px;cursor:pointer;transition:transform .1s}
+  .star-btn:hover{transform:scale(1.2)}
+  .rating-val{text-align:center;font-size:22px;font-weight:700;color:var(--gold)}
+  .rating-desc{text-align:center;font-size:11px;color:var(--muted)}
+  .caption-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13px;color:var(--text);resize:none;width:100%;outline:none;min-height:70px;font-family:inherit}
+  .char-count{font-size:11px;color:var(--muted);text-align:right}
+  .post-btn{background:var(--accent);color:#fff;border:none;border-radius:20px;padding:14px;font-size:15px;font-weight:700;width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.3px}
+  .post-preview{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px}
+  .pp-header{display:flex;align-items:center;gap:8px}
+  .pp-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+  .pp-name{font-size:13px;font-weight:600}
+  .pp-action{font-size:11px;color:var(--muted)}
+  .pp-content{display:flex;gap:10px}
+  .pp-cover{width:52px;height:72px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:24px}
+  .pp-info{flex:1}
+  .pp-title{font-size:13px;font-weight:600;margin-bottom:3px}
+  .pp-stars{color:var(--gold);font-size:12px;margin-bottom:4px}
+  .pp-caption{font-size:11px;color:var(--muted);line-height:1.4}
+  .profile-header{background:linear-gradient(180deg,rgba(108,99,255,.15),var(--bg));padding:20px 16px 12px}
+  .pf-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+  .pf-avatar{width:72px;height:72px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;border:3px solid rgba(108,99,255,.4)}
+  .pf-info{flex:1}
+  .pf-name{font-size:18px;font-weight:700;margin-bottom:2px}
+  .pf-handle{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .pf-bio{font-size:12px;color:var(--muted);line-height:1.4}
+  .pf-btns{display:flex;gap:8px}
+  .pf-btn{flex:1;padding:8px;border-radius:20px;font-size:12px;font-weight:600;text-align:center;cursor:pointer}
+  .pf-btn.edit{background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text)}
+  .pf-btn.follow{background:var(--accent);color:#fff;border:none}
+  .stats-row{display:flex;gap:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:12px}
+  .stat-block{flex:1;text-align:center;padding:12px 4px;border-right:1px solid var(--border)}
+  .stat-block:last-child{border-right:none}
+  .stat-val{font-size:20px;font-weight:700}
+  .stat-label{font-size:10px;color:var(--muted)}
+  .pf-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 16px;background:var(--bg)}
+  .pf-tab{padding:10px 10px;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;flex:1;text-align:center}
+  .pf-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .pf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:12px}
+  .grid-item{aspect-ratio:2/3;border-radius:8px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:28px;border:1px solid var(--border);position:relative;overflow:hidden}
+  .grid-item .grid-score{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.7);font-size:10px;font-weight:600;color:var(--gold);text-align:center;padding:3px}
+  .grid-item .done-badge{position:absolute;top:4px;right:4px;background:var(--green);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+  .grid-item .done-badge i{font-size:10px;color:white}
+  .activity-list{padding:12px;display:flex;flex-direction:column;gap:8px}
+  .act-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:10px;border:1px solid var(--border)}
+  .act-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .act-text{font-size:12px;line-height:1.4;flex:1}
+  .act-text b{color:var(--text)}
+  .act-time{font-size:10px;color:var(--muted)}
+</style>
+
+<div class="dual">
+  <div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">📤 Post Status Selesai Nonton</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="back"><i class="ti ti-x" style="font-size:14px" aria-hidden="true"></i></div>
+        <div style="flex:1;font-size:15px;font-weight:600;text-align:center">Buat Status</div>
+        <div style="font-size:12px;color:var(--muted)">Pratinjau</div>
+      </div>
+
+      <div class="body">
+        <div>
+          <div class="section-label">Pilih Anime</div>
+          <div class="anime-result">
+            <div class="ar-cover">⚔️</div>
+            <div class="ar-info">
+              <div class="ar-title">Demon Slayer: Mugen Train</div>
+              <div class="ar-sub">Ufotable · 2020 · Movie</div>
+            </div>
+            <i class="ti ti-circle-check-filled check-icon" aria-hidden="true"></i>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Status Tontonan</div>
+          <div class="status-options">
+            <div class="status-opt active">
+              <div class="opt-icon">✅</div>
+              <div class="opt-label">Selesai</div>
+            </div>
+            <div class="status-opt">
+              <div class="opt-icon">▶️</div>
+              <div class="opt-label">Sedang</div>
+            </div>
+            <div class="status-opt">
+              <div class="opt-icon">📌</div>
+              <div class="opt-label">Ingin Tonton</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Rating (Opsional)</div>
+          <div class="rating-section">
+            <div class="rating-title">Berapa skor untuk anime ini?</div>
+            <div class="stars-row">
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--gold)">★</span>
+              <span class="star-btn" style="color:var(--border)">★</span>
+              <span class="star-btn" style="color:var(--border)">★</span>
+            </div>
+            <div class="rating-val">8.5 / 10</div>
+            <div class="rating-desc">Sangat Bagus 🔥</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Caption (Opsional)</div>
+          <textarea class="caption-box" readonly placeholder="Bagikan kesan kamu tentang anime ini...">Film layar lebar pertama Kimetsu yang epic banget! Pertarungan Rengoku vs Akaza bikin merinding! 🔥</textarea>
+          <div class="char-count">87 / 280</div>
+        </div>
+
+        <div>
+          <div class="section-label">Pratinjau</div>
+          <div class="post-preview">
+            <div class="pp-header">
+              <div class="pp-avatar">S</div>
+              <div>
+                <div class="pp-name">Sehati_User</div>
+                <div class="pp-action">baru selesai menonton • baru saja</div>
+              </div>
+              <span style="margin-left:auto;font-size:11px;background:rgba(76,175,80,.15);color:var(--green);padding:3px 8px;border-radius:20px">✅ Selesai</span>
+            </div>
+            <div class="pp-content">
+              <div class="pp-cover">⚔️</div>
+              <div class="pp-info">
+                <div class="pp-title">Demon Slayer: Mugen Train</div>
+                <div class="pp-stars">★★★★½ <span style="color:var(--gold);font-weight:700">8.5</span></div>
+                <div class="pp-caption">"Film layar lebar pertama Kimetsu yang epic banget! Pertarungan Rengoku vs Akaza bikin merinding! 🔥"</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="post-btn">
+          <i class="ti ti-send" style="font-size:18px" aria-hidden="true"></i>
+          Posting ke Feed
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">👤 Halaman Profil User</div>
+    <div class="phone">
+      <div class="profile-header">
+        <div class="pf-top">
+          <div class="pf-avatar">H</div>
+          <div class="pf-info">
+            <div class="pf-name">Haikal99</div>
+            <div class="pf-handle">@haikal_otaku · Bandung</div>
+            <div class="pf-bio">Anime watcher sejak 2012. Top genre: Shonen & Seinen. Currently watching JJK 🔥</div>
+          </div>
+        </div>
+        <div class="pf-btns">
+          <div class="pf-btn follow">✓ Mengikuti</div>
+          <div class="pf-btn edit" style="flex:0.5;border-radius:10px;padding:8px 10px">
+            <i class="ti ti-message" style="font-size:16px" aria-hidden="true"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-block">
+          <div class="stat-val" style="color:var(--accent)">342</div>
+          <div class="stat-label">Anime Selesai</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val">1.2k</div>
+          <div class="stat-label">Pengikut</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val">287</div>
+          <div class="stat-label">Mengikuti</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:var(--gold)">9.1</div>
+          <div class="stat-label">Rata-rata ⭐</div>
+        </div>
+      </div>
+
+      <div class="pf-tabs">
+        <div class="pf-tab active">Daftar</div>
+        <div class="pf-tab">Review</div>
+        <div class="pf-tab">Aktivitas</div>
+      </div>
+
+      <div class="pf-grid">
+        <div class="grid-item">🗡️<div class="grid-score">9.5</div><div class="done-badge"><i class="ti ti-check" aria-hidden="true"></i></div></div>
+        <div class="grid-item">🧊<div class="grid-score">9.2</div><div class="done-badge"><i class="ti ti-check" aria-hidden="true"></i></div></div>
+        <div class="grid-item">⚔️<div class="grid-score">8.7</div><div class="done-badge"><i class="ti ti-check" aria-hidden="true"></i></div></div>
+        <div class="grid-item">🌊<div class="grid-score">9.0</div><div class="done-badge"><i class="ti ti-check" aria-hidden="true"></i></div></div>
+        <div class="grid-item">🔫<div class="grid-score">8.5</div><div class="done-badge"><i class="ti ti-check" aria-hidden="true"></i></div></div>
+        <div class="grid-item" style="border-style:dashed;opacity:.5">
+          <i class="ti ti-plus" style="font-size:24px;color:var(--muted)" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div style="padding:0 12px 6px">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Aktivitas Terbaru</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="act-item">
+            <div class="act-icon" style="background:rgba(76,175,80,.15)">✅</div>
+            <div class="act-text"><b>Selesai</b> menonton Jujutsu Kaisen S3</div>
+            <div class="act-time">5j</div>
+          </div>
+          <div class="act-item">
+            <div class="act-icon" style="background:rgba(108,99,255,.15)">✍️</div>
+            <div class="act-text"><b>Menulis review</b> untuk Solo Leveling S2</div>
+            <div class="act-time">1h</div>
+          </div>
+          <div class="act-item">
+            <div class="act-icon" style="background:rgba(255,193,7,.15)">⭐</div>
+            <div class="act-text"><b>Memberi rating 10/10</b> untuk Attack on Titan</div>
+            <div class="act-time">3h</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
