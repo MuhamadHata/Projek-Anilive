@@ -19,6 +19,26 @@
 
 ---
 
+<div align="center">
+
+# 📲 DOWNLOAD APLIKASI ANILIVE (APK)
+
+### 🚀 Unduh & Coba Langsung Aplikasi Android Anilive:
+
+<br />
+
+<a href="https://github.com/MuhamadHata/Projek-Anilive/releases">
+  <img src="https://img.shields.io/badge/📥%20DOWNLOAD%20APK%20RELEASE%20(v1.0.0)-CLICK%20HERE-28a745?style=for-the-badge&logo=android&logoColor=white" width="400" height="60" alt="Download APK Button" />
+</a>
+
+<br /><br />
+
+### 👉 **[KLIK DI SINI UNTUK MASUK HALAMAN DOWNLOAD RELEASES](https://github.com/MuhamadHata/Projek-Anilive/releases)** 👈
+
+</div>
+
+---
+
 ## 📱 Tampilan Visual Antarmuka (Showcase UI)
 
 Antarmuka dirancang dengan **Material 3 Design System** berorientasi *Dark-Only*, tipografi terkurasi, dan palet warna kontras tinggi yang nyaman di mata:
