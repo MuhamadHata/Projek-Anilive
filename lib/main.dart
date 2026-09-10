@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/services/supabase_service.dart';
 import 'core/theme/app_tokens.dart';
 import 'core/theme/theme_provider.dart';
+import 'features/anime/data/anime_offline_db.dart';
 import 'features/anime/presentation/explore_screen.dart';
 import 'features/auth/presentation/auth_provider.dart';
 import 'features/auth/presentation/biodata_screen.dart';
@@ -41,6 +43,8 @@ void main() async {
   };
 
   await SupabaseService.initialize();
+  // Warm up database offline lokal agar Explore Screen & Search tampil instan (0 ms)
+  unawaited(AnimeOfflineDb.ensureLoaded());
   runApp(const ProviderScope(child: AniliveApp()));
 }
 

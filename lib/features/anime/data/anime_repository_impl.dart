@@ -41,20 +41,22 @@ class AnimeRepositoryImpl implements AnimeRepository {
   }
 
   Future<void> _setCache(String key, List<Anime> list) async {
-    final prefs = SharedPreferencesAsync();
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final payload = jsonEncode({
-      't': now,
-      'd': list.map((a) => _animeToJson(a)).toList(),
-    });
-    await prefs.setString(key, payload);
+    try {
+      final prefs = SharedPreferencesAsync();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final payload = jsonEncode({
+        't': now,
+        'd': list.map((a) => _animeToJson(a)).toList(),
+      });
+      await prefs.setString(key, payload);
+    } catch (_) {}
   }
 
   Future<List<Anime>> _getCache(String key) async {
-    final prefs = SharedPreferencesAsync();
-    final raw = await prefs.getString(key);
-    if (raw == null) return [];
     try {
+      final prefs = SharedPreferencesAsync();
+      final raw = await prefs.getString(key);
+      if (raw == null) return [];
       final parsed = jsonDecode(raw) as Map<String, dynamic>;
       final ts = parsed['t'] as int;
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -88,36 +90,66 @@ class AnimeRepositoryImpl implements AnimeRepository {
 
   @override
   Future<List<Anime>> getTrending() async {
-    // Cache stabil 24 jam agar tampilan tidak berubah antar cold launch.
     final cached = await _getCache(_cacheKeyTrending);
-    if (cached.isNotEmpty) return _sanitizeFeed(cached, sortByPopularity: true).take(20).toList();
+    if (cached.isNotEmpty) {
+      _refreshTrendingInBackground();
+      return _sanitizeFeed(cached, sortByPopularity: true).take(20).toList();
+    }
+    final offline = await AnimeOfflineDb.getTopRated(limit: 30);
+    if (offline.isNotEmpty) {
+      final sanitized = _sanitizeFeed(offline, sortByPopularity: true).take(20).toList();
+      unawaited(_setCache(_cacheKeyTrending, sanitized));
+      _refreshTrendingInBackground();
+      return sanitized;
+    }
     try {
-      final list = await _aniList.getTrending();
+      final list = await _aniList.getTrending().timeout(const Duration(seconds: 3));
       if (list.isNotEmpty) {
         await _setCache(_cacheKeyTrending, list);
         AnimeFirestoreCache.saveAnimeList(list);
         return _sanitizeFeed(list, sortByPopularity: true).take(20).toList();
       }
     } catch (_) {}
-    try {
-      final list = await _api.getTopRated(page: 1);
-      if (list.isNotEmpty) {
-        await _setCache(_cacheKeyTrending, list);
-        return _sanitizeFeed(list, sortByPopularity: true).take(20).toList();
+    return [];
+  }
+
+  void _refreshTrendingInBackground() {
+    unawaited(() async {
+      try {
+        final list = await _aniList.getTrending().timeout(const Duration(seconds: 4));
+        if (list.isNotEmpty) {
+          await _setCache(_cacheKeyTrending, list);
+          AnimeFirestoreCache.saveAnimeList(list);
+        }
+      } catch (_) {
+        try {
+          final list = await _api.getTopRated(page: 1).timeout(const Duration(seconds: 4));
+          if (list.isNotEmpty) {
+            await _setCache(_cacheKeyTrending, list);
+          }
+        } catch (_) {}
       }
-    } catch (_) {}
-    final offline = await AnimeOfflineDb.getTopRated();
-    return _sanitizeFeed(offline, sortByPopularity: true).take(20).toList();
+    }());
   }
 
   @override
   Future<List<Anime>> getTopRated({int page = 1}) async {
     if (page == 1) {
       final cached = await _getCache(_cacheKeyTop);
-      if (cached.isNotEmpty) return _sanitizeFeed(cached);
+      if (cached.isNotEmpty) {
+        _refreshTopRatedInBackground();
+        return _sanitizeFeed(cached);
+      }
+      final offline = await AnimeOfflineDb.getTopRated(limit: 30);
+      if (offline.isNotEmpty) {
+        final sanitized = _sanitizeFeed(offline);
+        unawaited(_setCache(_cacheKeyTop, sanitized));
+        _refreshTopRatedInBackground();
+        return sanitized;
+      }
     }
     try {
-      final list = await _api.getTopRated(page: page);
+      final list = await _api.getTopRated(page: page).timeout(const Duration(seconds: 4));
       if (list.isNotEmpty) {
         if (page == 1) await _setCache(_cacheKeyTop, list);
         AnimeFirestoreCache.saveAnimeList(list);
@@ -125,7 +157,7 @@ class AnimeRepositoryImpl implements AnimeRepository {
       }
     } catch (_) {}
     try {
-      final list = await _aniList.searchAnime('', page: page, orderBy: 'score');
+      final list = await _aniList.searchAnime('', page: page, orderBy: 'score').timeout(const Duration(seconds: 4));
       if (list.isNotEmpty) {
         if (page == 1) await _setCache(_cacheKeyTop, list);
         AnimeFirestoreCache.saveAnimeList(list);
@@ -133,22 +165,44 @@ class AnimeRepositoryImpl implements AnimeRepository {
       }
     } catch (_) {}
     return _sanitizeFeed(await AnimeOfflineDb.getTopRated());
+  }
+
+  void _refreshTopRatedInBackground() {
+    unawaited(() async {
+      try {
+        final list = await _api.getTopRated(page: 1).timeout(const Duration(seconds: 4));
+        if (list.isNotEmpty) {
+          await _setCache(_cacheKeyTop, list);
+          AnimeFirestoreCache.saveAnimeList(list);
+        }
+      } catch (_) {
+        try {
+          final list = await _aniList.searchAnime('', page: 1, orderBy: 'score').timeout(const Duration(seconds: 4));
+          if (list.isNotEmpty) {
+            await _setCache(_cacheKeyTop, list);
+            AnimeFirestoreCache.saveAnimeList(list);
+          }
+        } catch (_) {}
+      }
+    }());
   }
 
   @override
   Future<List<Anime>> getCurrentSeason() async {
     final cached = await _getCache(_cacheKeySeason);
-    if (cached.isNotEmpty) return _sanitizeFeed(cached);
+    if (cached.isNotEmpty) {
+      _refreshSeasonInBackground();
+      return _sanitizeFeed(cached);
+    }
+    final offline = await AnimeOfflineDb.getTopRated(limit: 30);
+    if (offline.isNotEmpty) {
+      final sanitized = _sanitizeFeed(offline).take(20).toList();
+      unawaited(_setCache(_cacheKeySeason, sanitized));
+      _refreshSeasonInBackground();
+      return sanitized;
+    }
     try {
-      final list = await _api.getCurrentSeason();
-      if (list.isNotEmpty) {
-        await _setCache(_cacheKeySeason, list);
-        AnimeFirestoreCache.saveAnimeList(list);
-        return _sanitizeFeed(list);
-      }
-    } catch (_) {}
-    try {
-      final list = await _aniList.getCurrentSeason();
+      final list = await _api.getCurrentSeason().timeout(const Duration(seconds: 4));
       if (list.isNotEmpty) {
         await _setCache(_cacheKeySeason, list);
         AnimeFirestoreCache.saveAnimeList(list);
@@ -158,21 +212,43 @@ class AnimeRepositoryImpl implements AnimeRepository {
     return _sanitizeFeed(await AnimeOfflineDb.getTopRated());
   }
 
+  void _refreshSeasonInBackground() {
+    unawaited(() async {
+      try {
+        final list = await _api.getCurrentSeason().timeout(const Duration(seconds: 4));
+        if (list.isNotEmpty) {
+          await _setCache(_cacheKeySeason, list);
+          AnimeFirestoreCache.saveAnimeList(list);
+        }
+      } catch (_) {
+        try {
+          final list = await _aniList.getCurrentSeason().timeout(const Duration(seconds: 4));
+          if (list.isNotEmpty) {
+            await _setCache(_cacheKeySeason, list);
+            AnimeFirestoreCache.saveAnimeList(list);
+          }
+        } catch (_) {}
+      }
+    }());
+  }
+
   @override
   Future<List<Anime>> getUpcomingSeason() async {
-    final constKey = 'cache_season_upcoming';
+    const constKey = 'cache_season_upcoming';
     final cached = await _getCache(constKey);
-    if (cached.isNotEmpty) return _sanitizeFeed(cached);
+    if (cached.isNotEmpty) {
+      _refreshUpcomingInBackground();
+      return _sanitizeFeed(cached);
+    }
+    final offline = await AnimeOfflineDb.getUpcoming(limit: 30);
+    if (offline.isNotEmpty) {
+      final sanitized = _sanitizeFeed(offline).take(20).toList();
+      unawaited(_setCache(constKey, sanitized));
+      _refreshUpcomingInBackground();
+      return sanitized;
+    }
     try {
-      final list = await _api.getUpcomingSeason();
-      if (list.isNotEmpty) {
-        await _setCache(constKey, list);
-        AnimeFirestoreCache.saveAnimeList(list);
-        return _sanitizeFeed(list);
-      }
-    } catch (_) {}
-    try {
-      final list = await _aniList.getUpcomingSeason();
+      final list = await _api.getUpcomingSeason().timeout(const Duration(seconds: 4));
       if (list.isNotEmpty) {
         await _setCache(constKey, list);
         AnimeFirestoreCache.saveAnimeList(list);
@@ -180,6 +256,27 @@ class AnimeRepositoryImpl implements AnimeRepository {
       }
     } catch (_) {}
     return _sanitizeFeed(await AnimeOfflineDb.getUpcoming());
+  }
+
+  void _refreshUpcomingInBackground() {
+    unawaited(() async {
+      const constKey = 'cache_season_upcoming';
+      try {
+        final list = await _api.getUpcomingSeason().timeout(const Duration(seconds: 4));
+        if (list.isNotEmpty) {
+          await _setCache(constKey, list);
+          AnimeFirestoreCache.saveAnimeList(list);
+        }
+      } catch (_) {
+        try {
+          final list = await _aniList.getUpcomingSeason().timeout(const Duration(seconds: 4));
+          if (list.isNotEmpty) {
+            await _setCache(constKey, list);
+            AnimeFirestoreCache.saveAnimeList(list);
+          }
+        } catch (_) {}
+      }
+    }());
   }
 
   @override

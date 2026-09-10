@@ -26,53 +26,77 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Stream<UserProfile?> watchProfile(String userId) {
-    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || _supabase == null) {
-      _mockProfiles.putIfAbsent(
-        userId,
-        () => UserProfile(
-          id: userId,
-          username: 'anime_user',
-          displayName: 'Anime User',
-          bio: 'Penggemar anime dan reviewer komunitas.',
-          followersCount: 12,
-          followingCount: 8,
-          animeCompletedCount: 42,
-          createdAt: DateTime.now().subtract(const Duration(days: 90)),
-        ),
-      );
-      _mockController.add(_mockProfiles);
-      return _mockController.stream
-          .map((profiles) => profiles[userId])
-          .asBroadcastStream();
-    }
+    return Stream<UserProfile?>.multi((controller) {
+      // 1. Dapatkan profil default/lokal yang langsung siap tampil (0 ms)
+      final existing = _mockProfiles[userId] ??
+          UserProfile(
+            id: userId,
+            username: 'user_${userId.length > 5 ? userId.substring(0, 5) : userId}',
+            displayName: 'Pengguna Anilive',
+            bio: 'Penggemar anime dan reviewer komunitas.',
+            followersCount: 12,
+            followingCount: 8,
+            animeCompletedCount: 42,
+            createdAt: DateTime.now().subtract(const Duration(days: 90)),
+          );
+      _mockProfiles[userId] = existing;
+      controller.add(existing);
 
-    // Auto-create profil jika belum ada
-    _ensureProfileExists(userId);
+      // 2. Dengarkan broadcast controller untuk update lokal instan
+      final sub = _mockController.stream.listen((profiles) {
+        if (profiles.containsKey(userId)) {
+          controller.add(profiles[userId]);
+        }
+      });
+      controller.onCancel = sub.cancel;
 
-    return _supabase
-        .from('profiles')
-        .stream(primaryKey: ['id'])
-        .eq('id', userId)
-        .map((data) {
-          if (data.isEmpty) {
-            return _mockProfiles[userId];
-          }
-          return UserProfile.fromMap(data.first, userId);
-        })
-        .handleError((_) => _mockProfiles[userId]);
+      // 3. Jika Supabase terhubung, sinkronkan data profil di latar belakang
+      final sb = _supabase;
+      if (sb != null) {
+        _fetchAndSyncSupabaseProfile(userId, controller);
+      }
+    });
+  }
+
+  Future<void> _fetchAndSyncSupabaseProfile(
+    String userId,
+    MultiStreamController<UserProfile?> controller,
+  ) async {
+    final sb = _supabase;
+    if (sb == null) return;
+    try {
+      final res = await sb
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
+
+      if (res != null) {
+        final profile = UserProfile.fromMap(res, userId);
+        _mockProfiles[userId] = profile;
+        if (!controller.isClosed) {
+          controller.add(profile);
+        }
+      } else {
+        await _ensureProfileExists(userId);
+      }
+    } catch (_) {}
   }
 
   Future<void> _ensureProfileExists(String userId) async {
-    if (_supabase == null) return;
+    final sb = _supabase;
+    if (sb == null) return;
     try {
-      final existing = await _supabase
+      final existing = await sb
           .from('profiles')
           .select('id')
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
 
       if (existing == null) {
-        await _supabase.from('profiles').upsert({
+        await sb.from('profiles').upsert({
           'id': userId,
           'username': 'user_${userId.substring(0, 5.clamp(0, userId.length))}',
           'display_name': 'Pengguna Anilive',
@@ -80,7 +104,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
           'following_count': 0,
           'anime_completed_count': 0,
           'created_at': DateTime.now().toIso8601String(),
-        });
+        }).timeout(const Duration(seconds: 4));
       }
     } catch (_) {}
   }
@@ -90,9 +114,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
     _mockProfiles[profile.id] = profile;
     _mockController.add(_mockProfiles);
 
-    if (_supabase != null) {
+    final sb = _supabase;
+    if (sb != null) {
       try {
-        await _supabase.from('profiles').upsert(profile.toSupabaseMap());
+        await sb
+            .from('profiles')
+            .upsert(profile.toSupabaseMap())
+            .timeout(const Duration(seconds: 4));
       } catch (_) {}
     }
   }
@@ -111,42 +139,42 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
     _mockController.add(_mockProfiles);
 
-    if (_supabase != null) {
-      // 1. Catat relasi follow ke tabel follows
+    final sb = _supabase;
+    if (sb != null) {
       try {
-        await _supabase.from('follows').upsert({
+        await sb.from('follows').upsert({
           'follower_id': userId,
           'following_id': targetUserId,
           'created_at': DateTime.now().toIso8601String(),
-        });
+        }).timeout(const Duration(seconds: 4));
       } catch (_) {}
 
-      // 2. Tambah followers_count pada target profile secara realtime
       try {
-        final targetData = await _supabase
+        final targetData = await sb
             .from('profiles')
             .select('followers_count')
             .eq('id', targetUserId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         final currentFollowers =
             ((targetData?['followers_count'] as num?)?.toInt() ?? 0) + 1;
-        await _supabase.from('profiles').update({
+        await sb.from('profiles').update({
           'followers_count': currentFollowers,
-        }).eq('id', targetUserId);
+        }).eq('id', targetUserId).timeout(const Duration(seconds: 4));
       } catch (_) {}
 
-      // 3. Tambah following_count pada current user profile secara realtime
       try {
-        final myData = await _supabase
+        final myData = await sb
             .from('profiles')
             .select('following_count')
             .eq('id', userId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         final currentFollowing =
             ((myData?['following_count'] as num?)?.toInt() ?? 0) + 1;
-        await _supabase.from('profiles').update({
+        await sb.from('profiles').update({
           'following_count': currentFollowing,
-        }).eq('id', userId);
+        }).eq('id', userId).timeout(const Duration(seconds: 4));
       } catch (_) {}
     }
   }
@@ -166,44 +194,45 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
     _mockController.add(_mockProfiles);
 
-    if (_supabase != null) {
-      // 1. Hapus relasi dari tabel follows
+    final sb = _supabase;
+    if (sb != null) {
       try {
-        await _supabase
+        await sb
             .from('follows')
             .delete()
             .eq('follower_id', userId)
-            .eq('following_id', targetUserId);
+            .eq('following_id', targetUserId)
+            .timeout(const Duration(seconds: 4));
       } catch (_) {}
 
-      // 2. Kurangi followers_count pada target profile
       try {
-        final targetData = await _supabase
+        final targetData = await sb
             .from('profiles')
             .select('followers_count')
             .eq('id', targetUserId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         final currentFollowers =
             (((targetData?['followers_count'] as num?)?.toInt() ?? 1) - 1)
                 .clamp(0, 999999);
-        await _supabase.from('profiles').update({
+        await sb.from('profiles').update({
           'followers_count': currentFollowers,
-        }).eq('id', targetUserId);
+        }).eq('id', targetUserId).timeout(const Duration(seconds: 4));
       } catch (_) {}
 
-      // 3. Kurangi following_count pada current user profile
       try {
-        final myData = await _supabase
+        final myData = await sb
             .from('profiles')
             .select('following_count')
             .eq('id', userId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         final currentFollowing =
             (((myData?['following_count'] as num?)?.toInt() ?? 1) - 1)
                 .clamp(0, 999999);
-        await _supabase.from('profiles').update({
+        await sb.from('profiles').update({
           'following_count': currentFollowing,
-        }).eq('id', userId);
+        }).eq('id', userId).timeout(const Duration(seconds: 4));
       } catch (_) {}
     }
   }
@@ -212,14 +241,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<bool> isFollowing(String userId, String targetUserId) async {
     if (_mockFollows.contains('${userId}_$targetUserId')) return true;
 
-    if (_supabase != null) {
+    final sb = _supabase;
+    if (sb != null) {
       try {
-        final res = await _supabase
+        final res = await sb
             .from('follows')
             .select('id')
             .eq('follower_id', userId)
             .eq('following_id', targetUserId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         if (res != null) {
           _mockFollows.add('${userId}_$targetUserId');
           return true;

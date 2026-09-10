@@ -32,9 +32,7 @@ final upcomingSeasonProvider = FutureProvider.autoDispose<List<Anime>>((ref) {
   return ref.watch(animeRepositoryProvider).getUpcomingSeason();
 });
 
-/// AniList genre-based categories — diurutkan berdasarkan SKOR tertinggi
-/// sehingga menampilkan anime terbaik/booming di genre tsb
-/// (mis. Action -> Attack on Titan, Jujutsu Kaisen).
+/// Genre-based categories — Menampilkan anime terbaik/booming per genre secara instan (0 ms)
 final genreAnimeProvider = FutureProvider.autoDispose
     .family<List<Anime>, String>((ref, genre) async {
   bool matchesTargetGenre(Anime a) {
@@ -45,14 +43,33 @@ final genreAnimeProvider = FutureProvider.autoDispose
     });
   }
 
-  // 1. AniList: skor >= 7.5, format TV, urut skor tertinggi
+  // 1. Curated statis lokal instan (0 ms) dari bundled anime database
   try {
-    final list = await ref.watch(aniListApiProvider).searchByGenre(
-      genre,
-      sort: 'SCORE_DESC',
-      format: 'TV',
-      minScore: 75,
-    );
+    final curated =
+        AnimeSafety.filterList(await AnimeOfflineDb.getTopByGenre(genre))
+            .where(matchesTargetGenre)
+            .toList();
+    if (curated.isNotEmpty) return curated;
+  } catch (_) {}
+
+  try {
+    final offline = AnimeSafety.filterList(
+      await AnimeOfflineDb.getByGenre(genre, seriesOnly: true),
+    ).where(matchesTargetGenre).toList();
+    if (offline.isNotEmpty) return offline;
+  } catch (_) {}
+
+  // 2. AniList dengan timeout pendek (max 2 detik) jika offline kosong
+  try {
+    final list = await ref
+        .watch(aniListApiProvider)
+        .searchByGenre(
+          genre,
+          sort: 'SCORE_DESC',
+          format: 'TV',
+          minScore: 75,
+        )
+        .timeout(const Duration(seconds: 2));
     final filtered = list.where((a) {
       if (!AnimeSafety.isSafe(a)) return false;
       if (!matchesTargetGenre(a)) return false;
@@ -62,36 +79,27 @@ final genreAnimeProvider = FutureProvider.autoDispose
     if (filtered.isNotEmpty) return filtered;
   } catch (_) {}
 
-  // 2. Jikan: score desc + min_score 7.5
+  // 3. Jikan fallback
   try {
     final id = _genreNameToId(genre);
     if (id != null) {
-      final list = await ref.watch(jikanApiProvider).searchAnime(
-        '',
-        genres: [id],
-        orderBy: 'score',
-        type: 'tv',
-        minScore: 7.5,
-      );
-      final safe = AnimeSafety.filterList(list)
-          .where(matchesTargetGenre)
-          .toList();
+      final list = await ref
+          .watch(jikanApiProvider)
+          .searchAnime(
+            '',
+            genres: [id],
+            orderBy: 'score',
+            type: 'tv',
+            minScore: 7.5,
+          )
+          .timeout(const Duration(seconds: 2));
+      final safe =
+          AnimeSafety.filterList(list).where(matchesTargetGenre).toList();
       if (safe.isNotEmpty) return safe;
     }
   } catch (_) {}
 
-  // 3. Curated statis: hasil scraping AniList/MAL (skor + genre lengkap)
-  try {
-    final curated =
-        AnimeSafety.filterList(await AnimeOfflineDb.getTopByGenre(genre))
-            .where(matchesTargetGenre)
-            .toList();
-    if (curated.isNotEmpty) return curated;
-  } catch (_) {}
-
-  return AnimeSafety.filterList(
-    await AnimeOfflineDb.getByGenre(genre, seriesOnly: true),
-  ).where(matchesTargetGenre).toList();
+  return [];
 });
 
 int? _genreNameToId(String name) {
@@ -109,15 +117,33 @@ int? _genreNameToId(String name) {
   return map[name.toLowerCase()];
 }
 
-/// Film & Movie Terbaik — skor tertinggi dari AniList/MAL.
+/// Film & Movie Terbaik — skor tertinggi instan (0 ms) dari bundled offline database & scraping.
 final topMoviesProvider = FutureProvider.autoDispose<List<Anime>>((ref) async {
+  // 1. Curated film terbaik lokal instan (0 ms)
   try {
-    final list = await ref.watch(aniListApiProvider).searchByGenre(
-      'Action',
-      sort: 'SCORE_DESC',
-      format: 'MOVIE',
-      minScore: 78,
+    final curatedMovies = AnimeSafety.filterList(
+      await AnimeOfflineDb.getCuratedMovies(),
     );
+    if (curatedMovies.isNotEmpty) return curatedMovies;
+  } catch (_) {}
+
+  try {
+    final offlineMovies =
+        AnimeSafety.filterList(await AnimeOfflineDb.getMovies());
+    if (offlineMovies.isNotEmpty) return offlineMovies;
+  } catch (_) {}
+
+  // 2. AniList dengan timeout pendek
+  try {
+    final list = await ref
+        .watch(aniListApiProvider)
+        .searchByGenre(
+          'Action',
+          sort: 'SCORE_DESC',
+          format: 'MOVIE',
+          minScore: 78,
+        )
+        .timeout(const Duration(seconds: 2));
     final movies = list
         .where((a) =>
             AnimeSafety.isSafe(a) &&
@@ -126,26 +152,22 @@ final topMoviesProvider = FutureProvider.autoDispose<List<Anime>>((ref) async {
     if (movies.isNotEmpty) return movies;
   } catch (_) {}
 
+  // 3. Jikan fallback
   try {
-    final list = await ref.watch(jikanApiProvider).searchAnime(
-      '',
-      orderBy: 'score',
-      type: 'movie',
-      minScore: 8.0,
-    );
+    final list = await ref
+        .watch(jikanApiProvider)
+        .searchAnime(
+          '',
+          orderBy: 'score',
+          type: 'movie',
+          minScore: 8.0,
+        )
+        .timeout(const Duration(seconds: 2));
     final safe = AnimeSafety.filterList(list);
     if (safe.isNotEmpty) return safe;
   } catch (_) {}
 
-  // Curated statis: film terbaik hasil scraping
-  try {
-    final curatedMovies = AnimeSafety.filterList(
-      await AnimeOfflineDb.getCuratedMovies(),
-    );
-    if (curatedMovies.isNotEmpty) return curatedMovies;
-  } catch (_) {}
-
-  return AnimeSafety.filterList(await AnimeOfflineDb.getMovies());
+  return [];
 });
 
 class AnimeFilterArgs {
