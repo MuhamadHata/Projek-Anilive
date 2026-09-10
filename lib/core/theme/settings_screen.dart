@@ -33,12 +33,12 @@ class SettingsScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.info_outline, color: AppColors.accent),
               title: const Text('Tentang Anilive'),
-              subtitle: const Text('Versi 2.0.0 (Flutter Multiplatform)'),
+              subtitle: const Text('v1.0.0'),
               onTap: () {
                 showAboutDialog(
                   context: context,
                   applicationName: 'Anilive',
-                  applicationVersion: '2.0.0',
+                  applicationVersion: 'v1.0.0',
                   applicationIcon: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     child: Image.asset(
