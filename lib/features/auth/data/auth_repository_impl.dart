@@ -568,6 +568,11 @@ class AuthRepositoryImpl implements AuthRepository {
             ? AppConfig.googleWebClientId
             : null,
       );
+      // Reset session Google SDK sebelumnya agar dialog pemilihan akun selalu muncul
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         return null;
@@ -762,6 +767,14 @@ class AuthRepositoryImpl implements AuthRepository {
     _mockUser = null;
     await _saveLocalUser(null);
     _authStateController.add(null);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: AppConfig.googleWebClientId.isNotEmpty
+            ? AppConfig.googleWebClientId
+            : null,
+      );
+      await googleSignIn.signOut();
+    } catch (_) {}
     final sb = _supabase;
     if (!AppConfig.useSupabase || !SupabaseService.isInitialized || sb == null) {
       return;
