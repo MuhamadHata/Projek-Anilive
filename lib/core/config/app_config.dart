@@ -4,20 +4,21 @@ class AppConfig {
     defaultValue: true,
   );
 
-  // Supabase Credentials (disediakan via .env atau --dart-define)
+  // Supabase Credentials (default ke kredensial proyek Supabase Anilive)
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://tihkckfzshynedtalxsr.supabase.co',
   );
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue: 'sb_publishable_4b5PDmIEx8ec71kFixy8EQ_YH01pwj0',
   );
 
   // Google OAuth Web Client ID
   static const String googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
-    defaultValue: '',
+    defaultValue:
+        '685061689158-edj18sj1ddntd93fs171o9js4hb56rq0.apps.googleusercontent.com',
   );
 
   static const String jikanBaseUrl = 'https://api.jikan.moe/v4';
@@ -29,7 +30,7 @@ class AppConfig {
   );
   static const String llmApiKey = String.fromEnvironment(
     'LLM_API_KEY',
-    defaultValue: '',
+    defaultValue: '8700b4128e7e435a9fa3b4f3772b62af.2oB3TmwCjmmm2DdNc0Zu-sKo',
   );
   static const String llmModel = String.fromEnvironment(
     'LLM_MODEL',
@@ -39,6 +40,6 @@ class AppConfig {
   // Giphy API Configuration
   static const String giphyApiKey = String.fromEnvironment(
     'GIPHY_API_KEY',
-    defaultValue: '',
+    defaultValue: 'QtBRcbxBKJbdEHBqPd9XEyXb4R8YH05R',
   );
 }

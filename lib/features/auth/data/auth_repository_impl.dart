@@ -648,7 +648,7 @@ class AuthRepositoryImpl implements AuthRepository {
           return appUser;
         }
       }
-    } catch (_) {
+    } catch (e) {
       try {
         final success = await sb.auth.signInWithOAuth(
           OAuthProvider.google,
@@ -656,6 +656,7 @@ class AuthRepositoryImpl implements AuthRepository {
         );
         if (success) return currentUser;
       } catch (_) {}
+      rethrow;
     }
 
     return currentUser;
