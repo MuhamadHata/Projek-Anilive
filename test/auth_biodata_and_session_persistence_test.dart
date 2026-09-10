@@ -38,23 +38,46 @@ void main() {
       expect(restored.needsBiodataSetup, false);
     });
 
-    test('AuthRepositoryImpl saves and restores session with birthDate from SharedPreferences', () async {
+    test('Registering with birthDate stores it immediately and bypasses biodata setup', () async {
+      final repo = AuthRepositoryImpl();
+      final birthDate = DateTime(1999, 8, 15);
+
+      final user = await repo.registerWithEmail(
+        username: 'NewOtaku',
+        email: 'new_otaku@anilive.app',
+        password: 'password123',
+        birthDate: birthDate,
+      );
+
+      expect(user, isNotNull);
+      expect(user?.birthDate, birthDate);
+      expect(user?.needsBiodataSetup, false);
+    });
+
+    test('Logging in with existing email immediately resolves birthDate and never prompts biodata setup', () async {
       final repo = AuthRepositoryImpl();
       final birthDate = DateTime(1998, 12, 1);
 
-      // Login mock
-      await repo.loginWithEmail('test@anilive.app', 'password123');
-      expect(repo.currentUser, isNotNull);
-      expect(repo.currentUser?.needsBiodataSetup, true);
+      // Register first with birthDate
+      await repo.registerWithEmail(
+        username: 'ExistingUser',
+        email: 'existing@anilive.app',
+        password: 'password123',
+        birthDate: birthDate,
+      );
 
-      // Update birth date
-      await repo.updateBirthDate(birthDate);
-      expect(repo.currentUser?.birthDate, birthDate);
-      expect(repo.currentUser?.needsBiodataSetup, false);
+      // Logout
+      await repo.logout();
+      expect(repo.currentUser, isNull);
 
-      // Verify persistent session can be restored by a new instance
+      // Login again with the same email
+      final loggedInUser = await repo.loginWithEmail('existing@anilive.app', 'password123');
+      expect(loggedInUser, isNotNull);
+      expect(loggedInUser?.birthDate, birthDate);
+      expect(loggedInUser?.needsBiodataSetup, false);
+
+      // Verify persistent session can be restored by a brand new repository instance
       final reloadedRepo = AuthRepositoryImpl();
-      // Wait microtask for initSession
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(reloadedRepo.currentUser?.birthDate, birthDate);
       expect(reloadedRepo.currentUser?.needsBiodataSetup, false);

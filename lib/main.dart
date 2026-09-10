@@ -126,10 +126,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user =
-        ref.watch(authNotifierProvider).value ??
-        ref.watch(authRepositoryProvider).currentUser;
-    final currentUserId = user?.id ?? 'mock_user_123';
+    final user = ref.watch(currentUserProvider);
+    final sbId = SupabaseService.client?.auth.currentUser?.id;
+    final currentUserId = user?.id ?? sbId ?? 'mock_user_123';
     final unreadCount =
         ref.watch(unreadNotificationsCountProvider(currentUserId));
 
@@ -189,11 +188,11 @@ class _ProfileTabWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user =
-        ref.watch(authNotifierProvider).value ??
-        ref.read(authRepositoryProvider).currentUser;
+    final user = ref.watch(currentUserProvider);
+    final sbId = SupabaseService.client?.auth.currentUser?.id;
+    final currentUserId = user?.id ?? sbId ?? 'mock_uid_123';
     return ProfileScreen(
-      userId: user?.id ?? 'mock_uid_123',
+      userId: currentUserId,
       embedded: false,
     );
   }

@@ -11,6 +11,11 @@ final authStateProvider = StreamProvider<AppUser?>((ref) {
   return ref.watch(authRepositoryProvider).onAuthStateChanged;
 });
 
+final currentUserProvider = Provider<AppUser?>((ref) {
+  return ref.watch(authStateProvider).value ??
+      ref.watch(authRepositoryProvider).currentUser;
+});
+
 class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
   final AuthRepository _repository;
 
@@ -26,13 +31,19 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     }
   }
 
-  Future<void> register(String username, String email, String password) async {
+  Future<void> register(
+    String username,
+    String email,
+    String password, {
+    DateTime? birthDate,
+  }) async {
     state = const AsyncValue.loading();
     try {
       final user = await _repository.registerWithEmail(
         username: username,
         email: email,
         password: password,
+        birthDate: birthDate,
       );
       state = AsyncValue.data(user);
     } catch (e, st) {

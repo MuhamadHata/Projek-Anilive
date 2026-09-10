@@ -7,6 +7,7 @@ abstract class AuthRepository {
     required String username,
     required String email,
     required String password,
+    DateTime? birthDate,
   });
   Future<AppUser?> loginWithGoogle();
   Future<void> logout();

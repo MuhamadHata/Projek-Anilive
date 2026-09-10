@@ -27,20 +27,32 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Stream<UserProfile?> watchProfile(String userId) {
     return Stream<UserProfile?>.multi((controller) {
-      // 1. Dapatkan profil default/lokal yang langsung siap tampil (0 ms)
-      final existing = _mockProfiles[userId] ??
-          UserProfile(
-            id: userId,
-            username: 'user_${userId.length > 5 ? userId.substring(0, 5) : userId}',
-            displayName: 'Pengguna Anilive',
-            bio: 'Penggemar anime dan reviewer komunitas.',
-            followersCount: 12,
-            followingCount: 8,
-            animeCompletedCount: 42,
-            createdAt: DateTime.now().subtract(const Duration(days: 90)),
-          );
-      _mockProfiles[userId] = existing;
-      controller.add(existing);
+      // 1. Dapatkan profil dari cache atau inisialisasi dari user aktif
+      final existing = _mockProfiles[userId];
+      if (existing != null) {
+        controller.add(existing);
+      } else {
+        final sb = _supabase;
+        final sbUser = (sb?.auth.currentUser?.id == userId) ? sb?.auth.currentUser : null;
+        final email = sbUser?.email ?? '';
+        final initial = UserProfile(
+          id: userId,
+          username: (sbUser?.userMetadata?['username'] as String?) ??
+              (sbUser?.userMetadata?['full_name'] as String?) ??
+              (email.isNotEmpty ? email.split('@')[0] : 'user_${userId.length > 5 ? userId.substring(0, 5) : userId}'),
+          displayName: (sbUser?.userMetadata?['full_name'] as String?) ??
+              (sbUser?.userMetadata?['name'] as String?) ??
+              'Pengguna Anilive',
+          bio: null,
+          avatarUrl: sbUser?.userMetadata?['avatar_url'] as String?,
+          followersCount: 0,
+          followingCount: 0,
+          animeCompletedCount: 0,
+          createdAt: DateTime.now(),
+        );
+        _mockProfiles[userId] = initial;
+        controller.add(initial);
+      }
 
       // 2. Dengarkan broadcast controller untuk update lokal instan
       final sub = _mockController.stream.listen((profiles) {
