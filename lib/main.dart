@@ -87,9 +87,24 @@ class _AuthGate extends ConsumerWidget {
         }
         return const HomeScreen();
       },
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.accent)),
-      ),
+      loading: () {
+        final current = ref.read(authRepositoryProvider).currentUser;
+        if (current != null) {
+          if (current.needsBiodataSetup) {
+            return BiodataScreen(
+              userId: current.id,
+              onComplete: () {
+                ref.invalidate(authStateProvider);
+              },
+            );
+          }
+          return const HomeScreen();
+        }
+        return const Scaffold(
+          backgroundColor: AppColors.background,
+          body: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+        );
+      },
       error: (_, _) => const LoginScreen(),
     );
   }

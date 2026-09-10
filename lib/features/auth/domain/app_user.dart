@@ -46,4 +46,33 @@ class AppUser {
       birthDate: birthDate ?? this.birthDate,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'email': email,
+      'username': username,
+      'displayName': displayName,
+      'avatarUrl': avatarUrl,
+      'bio': bio,
+      'birthDate': birthDate?.toIso8601String(),
+    };
+  }
+
+  factory AppUser.fromMap(Map<String, dynamic> map) {
+    return AppUser(
+      id: map['id'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      username: map['username'] as String? ?? '',
+      displayName:
+          map['displayName'] as String? ?? map['display_name'] as String?,
+      avatarUrl:
+          map['avatarUrl'] as String? ?? map['avatar_url'] as String?,
+      bio: map['bio'] as String?,
+      birthDate: (map['birthDate'] ?? map['birth_date']) != null
+          ? DateTime.tryParse(
+              (map['birthDate'] ?? map['birth_date']).toString())
+          : null,
+    );
+  }
 }

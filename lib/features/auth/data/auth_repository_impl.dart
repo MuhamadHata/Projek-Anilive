@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/services/supabase_service.dart';
@@ -8,6 +10,7 @@ import '../domain/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseClient? _injectedClient;
+  static const String _cachedUserKey = 'anilive_cached_auth_user';
 
   SupabaseClient? get _supabase =>
       _injectedClient ??
@@ -15,84 +18,137 @@ class AuthRepositoryImpl implements AuthRepository {
           ? SupabaseService.client
           : null);
 
-  // Mock State for Local / Offline Mode
   static AppUser? _mockUser;
   static AppUser? _cachedProfileUser;
-  final _mockStateController = StreamController<AppUser?>.broadcast();
+  static final _authStateController = StreamController<AppUser?>.broadcast();
+  static bool _sessionInitialized = false;
 
   AuthRepositoryImpl({SupabaseClient? client}) : _injectedClient = client {
-    if (!AppConfig.useSupabase || !SupabaseService.isInitialized) {
-      _mockStateController.add(null);
+    if (!_sessionInitialized) {
+      _sessionInitialized = true;
+      _initSession();
+    }
+  }
+
+  static Future<void> _saveLocalUser(AppUser? user) async {
+    try {
+      final prefs = SharedPreferencesAsync();
+      if (user == null) {
+        await prefs.remove(_cachedUserKey);
+      } else {
+        await prefs.setString(_cachedUserKey, jsonEncode(user.toMap()));
+      }
+    } catch (_) {}
+  }
+
+  static Future<AppUser?> _loadLocalUser() async {
+    try {
+      final prefs = SharedPreferencesAsync();
+      final raw = await prefs.getString(_cachedUserKey);
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        return AppUser.fromMap(map);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _initSession() async {
+    final localUser = await _loadLocalUser();
+    if (localUser != null) {
+      _cachedProfileUser = localUser;
+      _mockUser = localUser;
+      _authStateController.add(localUser);
+    }
+
+    final sb = _supabase;
+    if (AppConfig.useSupabase && SupabaseService.isInitialized && sb != null) {
+      sb.auth.onAuthStateChange.listen((data) async {
+        final user = data.session?.user;
+        if (user == null) {
+          _cachedProfileUser = null;
+          _mockUser = null;
+          await _saveLocalUser(null);
+          _authStateController.add(null);
+        } else {
+          final appUser = await _getUserFromSupabase(user.id, user.email ?? '');
+          final currentLocal = await _loadLocalUser();
+          final resolvedUser = (appUser.birthDate == null &&
+                  currentLocal?.birthDate != null &&
+                  currentLocal?.id == user.id)
+              ? appUser.copyWith(birthDate: currentLocal!.birthDate)
+              : appUser;
+          _cachedProfileUser = resolvedUser;
+          _mockUser = resolvedUser;
+          await _saveLocalUser(resolvedUser);
+          _authStateController.add(resolvedUser);
+        }
+      });
+
+      final currentSbUser = sb.auth.currentUser;
+      if (currentSbUser != null) {
+        try {
+          final appUser = await _getUserFromSupabase(
+            currentSbUser.id,
+            currentSbUser.email ?? '',
+          ).timeout(const Duration(seconds: 4));
+          final resolvedUser = (appUser.birthDate == null &&
+                  localUser?.birthDate != null &&
+                  localUser?.id == currentSbUser.id)
+              ? appUser.copyWith(birthDate: localUser!.birthDate)
+              : appUser;
+          _cachedProfileUser = resolvedUser;
+          _mockUser = resolvedUser;
+          await _saveLocalUser(resolvedUser);
+          _authStateController.add(resolvedUser);
+        } catch (_) {
+          if (localUser != null) {
+            _authStateController.add(localUser);
+          }
+        }
+      } else if (localUser == null) {
+        _authStateController.add(null);
+      }
+    } else {
+      if (localUser != null) {
+        _authStateController.add(localUser);
+      } else if (_mockUser != null) {
+        _authStateController.add(_mockUser);
+      } else {
+        _authStateController.add(null);
+      }
     }
   }
 
   @override
   Stream<AppUser?> get onAuthStateChanged {
-    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || _supabase == null) {
-      return Stream<AppUser?>.multi((controller) {
-        controller.add(_mockUser);
-        final subscription = _mockStateController.stream.listen(
-          controller.add,
-          onError: controller.addError,
-          onDone: controller.close,
-        );
-        controller.onCancel = subscription.cancel;
-      });
-    }
-
-    return _supabase!.auth.onAuthStateChange.asyncMap((data) async {
-      final user = data.session?.user;
-      if (user == null) {
-        _cachedProfileUser = null;
-        return null;
+    return Stream<AppUser?>.multi((controller) {
+      final current = currentUser;
+      if (current != null) {
+        controller.add(current);
       }
-      final appUser = await _getUserFromSupabase(user.id, user.email ?? '');
-      _cachedProfileUser = appUser;
-      return appUser;
+      final sub = _authStateController.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = sub.cancel;
     });
   }
 
   @override
-  AppUser? get currentUser {
-    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || _supabase == null) {
-      return _mockUser;
-    }
-    final user = _supabase?.auth.currentUser;
-    if (user == null) {
-      _cachedProfileUser = null;
-      return null;
-    }
-    if (_cachedProfileUser != null && _cachedProfileUser!.id == user.id) {
-      return _cachedProfileUser;
-    }
-
-    // Trigger async fetch to update _cachedProfileUser in background
-    _getUserFromSupabase(user.id, user.email ?? '').then((u) {
-      _cachedProfileUser = u;
-      _mockStateController.add(u);
-    }).catchError((_) {});
-
-    return AppUser(
-      id: user.id,
-      email: user.email ?? '',
-      username: (user.userMetadata?['username'] as String?) ??
-          (user.userMetadata?['full_name'] as String?) ??
-          user.email?.split('@')[0] ??
-          'User',
-      displayName: (user.userMetadata?['full_name'] as String?) ??
-          (user.userMetadata?['name'] as String?),
-      avatarUrl: user.userMetadata?['avatar_url'] as String?,
-    );
-  }
+  AppUser? get currentUser => _cachedProfileUser ?? _mockUser;
 
   Future<AppUser> _getUserFromSupabase(String uid, String email) async {
-    if (_supabase != null) {
+    final sb = _supabase;
+    if (sb != null) {
       try {
-        final res = await _supabase!
+        final res = await sb
             .from('profiles')
             .select()
             .eq('id', uid)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
 
         if (res != null) {
           final birthDateRaw = res['birth_date'];
@@ -109,10 +165,10 @@ class AuthRepositoryImpl implements AuthRepository {
             birthDate: birthDate,
           );
           _cachedProfileUser = user;
+          _mockUser = user;
           return user;
         } else {
-          // Profil belum ada (pengguna baru via Google OAuth), buatkan otomatis
-          final metadata = _supabase?.auth.currentUser?.userMetadata;
+          final metadata = sb.auth.currentUser?.userMetadata;
           final googleName = (metadata?['full_name'] as String?) ??
               (metadata?['name'] as String?) ??
               email.split('@')[0];
@@ -120,14 +176,14 @@ class AuthRepositoryImpl implements AuthRepository {
           final username = email.split('@')[0];
 
           try {
-            await _supabase!.from('profiles').upsert({
+            await sb.from('profiles').upsert({
               'id': uid,
               'username': username,
               'display_name': googleName,
               if (avatarUrl != null && avatarUrl.isNotEmpty)
                 'avatar_url': avatarUrl,
               'updated_at': DateTime.now().toIso8601String(),
-            });
+            }).timeout(const Duration(seconds: 4));
           } catch (_) {}
 
           final user = AppUser(
@@ -138,12 +194,18 @@ class AuthRepositoryImpl implements AuthRepository {
             avatarUrl: avatarUrl,
           );
           _cachedProfileUser = user;
+          _mockUser = user;
           return user;
         }
       } catch (_) {}
     }
-    final fallbackUser = AppUser(id: uid, email: email, username: email.split('@')[0]);
+    final fallbackUser = AppUser(
+      id: uid,
+      email: email,
+      username: email.split('@')[0],
+    );
     _cachedProfileUser = fallbackUser;
+    _mockUser = fallbackUser;
     return fallbackUser;
   }
 
@@ -152,13 +214,19 @@ class AuthRepositoryImpl implements AuthRepository {
     final sb = _supabase;
     if (!AppConfig.useSupabase || !SupabaseService.isInitialized || sb == null) {
       if (email.contains('error')) throw Exception('Mock login failed');
-      _mockUser = AppUser(
-        id: 'mock_uid_123',
-        email: email,
-        username: email.split('@')[0],
-      );
-      _mockStateController.add(_mockUser);
-      return _mockUser;
+      final local = await _loadLocalUser();
+      final user = (local != null && local.email == email)
+          ? local
+          : AppUser(
+              id: 'mock_uid_123',
+              email: email,
+              username: email.split('@')[0],
+            );
+      _mockUser = user;
+      _cachedProfileUser = user;
+      await _saveLocalUser(user);
+      _authStateController.add(user);
+      return user;
     }
 
     final response = await sb.auth.signInWithPassword(
@@ -167,7 +235,12 @@ class AuthRepositoryImpl implements AuthRepository {
     );
     final user = response.user;
     if (user == null) return null;
-    return _getUserFromSupabase(user.id, email);
+    final appUser = await _getUserFromSupabase(user.id, email);
+    _cachedProfileUser = appUser;
+    _mockUser = appUser;
+    await _saveLocalUser(appUser);
+    _authStateController.add(appUser);
+    return appUser;
   }
 
   @override
@@ -178,9 +251,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     final sb = _supabase;
     if (!AppConfig.useSupabase || !SupabaseService.isInitialized || sb == null) {
-      _mockUser = AppUser(id: 'mock_uid_123', email: email, username: username);
-      _mockStateController.add(_mockUser);
-      return _mockUser;
+      final user = AppUser(
+        id: 'mock_uid_123',
+        email: email,
+        username: username,
+      );
+      _mockUser = user;
+      _cachedProfileUser = user;
+      await _saveLocalUser(user);
+      _authStateController.add(user);
+      return user;
     }
 
     final response = await sb.auth.signUp(
@@ -203,8 +283,13 @@ class AuthRepositoryImpl implements AuthRepository {
         'username': username,
         'display_name': username,
         'created_at': DateTime.now().toIso8601String(),
-      });
+      }).timeout(const Duration(seconds: 4));
     } catch (_) {}
+
+    _cachedProfileUser = newUser;
+    _mockUser = newUser;
+    await _saveLocalUser(newUser);
+    _authStateController.add(newUser);
 
     return newUser;
   }
@@ -213,17 +298,19 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AppUser?> loginWithGoogle() async {
     final sb = _supabase;
     if (!AppConfig.useSupabase || !SupabaseService.isInitialized || sb == null) {
-      _mockUser = const AppUser(
+      const user = AppUser(
         id: 'mock_google_123',
         email: 'google@gmail.com',
         username: 'GoogleUser',
       );
-      _mockStateController.add(_mockUser);
-      return _mockUser;
+      _mockUser = user;
+      _cachedProfileUser = user;
+      await _saveLocalUser(user);
+      _authStateController.add(user);
+      return user;
     }
 
     try {
-      // 1. Coba Native Google Sign In via google_sign_in (UX terbaik di Android/iOS)
       final GoogleSignIn googleSignIn = GoogleSignIn(
         serverClientId: AppConfig.googleWebClientId.isNotEmpty
             ? AppConfig.googleWebClientId
@@ -231,7 +318,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
-        return null; // Pengguna membatalkan
+        return null;
       }
 
       final googleAuth = await googleUser.authentication;
@@ -256,37 +343,40 @@ class AuthRepositoryImpl implements AuthRepository {
               '';
 
           try {
-            final existing = await _supabase!
+            final existing = await sb
                 .from('profiles')
                 .select('id, username')
                 .eq('id', u.id)
-                .maybeSingle();
+                .maybeSingle()
+                .timeout(const Duration(seconds: 4));
 
             if (existing == null) {
-              await _supabase!.from('profiles').upsert({
+              await sb.from('profiles').upsert({
                 'id': u.id,
                 'username': displayName,
                 'display_name': displayName,
                 if (avatarUrl.isNotEmpty) 'avatar_url': avatarUrl,
                 'updated_at': DateTime.now().toIso8601String(),
-              });
+              }).timeout(const Duration(seconds: 4));
             } else if (avatarUrl.isNotEmpty) {
-              await _supabase!.from('profiles').update({
+              await sb.from('profiles').update({
                 'avatar_url': avatarUrl,
                 'updated_at': DateTime.now().toIso8601String(),
-              }).eq('id', u.id);
+              }).eq('id', u.id).timeout(const Duration(seconds: 4));
             }
           } catch (_) {}
 
           final appUser = await _getUserFromSupabase(u.id, u.email ?? '');
           _cachedProfileUser = appUser;
+          _mockUser = appUser;
+          await _saveLocalUser(appUser);
+          _authStateController.add(appUser);
           return appUser;
         }
       }
     } catch (_) {
-      // 2. Fallback otomatis ke Supabase Browser OAuth dengan Deep Link Callback
       try {
-        final success = await _supabase!.auth.signInWithOAuth(
+        final success = await sb.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: 'io.supabase.anitrack://login-callback',
         );
@@ -298,19 +388,108 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> updateBirthDate(DateTime birthDate) async {
+    final current = currentUser;
+    final uid = current?.id ??
+        _supabase?.auth.currentUser?.id ??
+        'mock_uid_123';
+    final email = current?.email ??
+        _supabase?.auth.currentUser?.email ??
+        'user@anilive.app';
+    final username = current?.username ?? email.split('@')[0];
+
+    final updated = (current ??
+            AppUser(
+              id: uid,
+              email: email,
+              username: username,
+            ))
+        .copyWith(birthDate: birthDate);
+
+    _cachedProfileUser = updated;
+    _mockUser = updated;
+    await _saveLocalUser(updated);
+    _authStateController.add(updated);
+
+    final sb = _supabase;
+    if (AppConfig.useSupabase && SupabaseService.isInitialized && sb != null) {
+      try {
+        final birthDateStr = birthDate.toIso8601String().split('T').first;
+        await sb.from('profiles').upsert({
+          'id': uid,
+          'birth_date': birthDateStr,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Future<void> updateProfile({
+    String? username,
+    String? displayName,
+    String? avatarUrl,
+    String? bio,
+    DateTime? birthDate,
+  }) async {
+    final current = currentUser;
+    if (current == null) return;
+
+    final updated = current.copyWith(
+      username: username,
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+      bio: bio,
+      birthDate: birthDate,
+    );
+
+    _cachedProfileUser = updated;
+    _mockUser = updated;
+    await _saveLocalUser(updated);
+    _authStateController.add(updated);
+
+    final sb = _supabase;
+    if (AppConfig.useSupabase && SupabaseService.isInitialized && sb != null) {
+      try {
+        final map = <String, dynamic>{
+          'id': updated.id,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+        if (username != null) map['username'] = username;
+        if (displayName != null) map['display_name'] = displayName;
+        if (avatarUrl != null) map['avatar_url'] = avatarUrl;
+        if (bio != null) map['bio'] = bio;
+        if (birthDate != null) {
+          map['birth_date'] = birthDate.toIso8601String().split('T').first;
+        }
+        await sb.from('profiles').upsert(map).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
+  }
+
+  @override
   Future<void> logout() async {
     _cachedProfileUser = null;
     _mockUser = null;
-    _mockStateController.add(null);
-    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || _supabase == null) {
+    await _saveLocalUser(null);
+    _authStateController.add(null);
+    final sb = _supabase;
+    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || sb == null) {
       return;
     }
-    await _supabase?.auth.signOut();
+    try {
+      await sb.auth.signOut();
+    } catch (_) {}
   }
 
   @override
   Future<void> resetPassword(String email) async {
-    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || _supabase == null) return;
-    await _supabase?.auth.resetPasswordForEmail(email);
+    final sb = _supabase;
+    if (!AppConfig.useSupabase || !SupabaseService.isInitialized || sb == null) {
+      return;
+    }
+    try {
+      await sb.auth.resetPasswordForEmail(email);
+    } catch (_) {}
   }
 }

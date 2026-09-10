@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:anitrack/core/theme/app_tokens.dart';
-import '../../../core/services/supabase_service.dart';
+import 'auth_provider.dart';
 
 /// Bottom sheet yang muncul setelah login jika user belum mengisi tanggal lahir.
 /// Setelah disimpan, data ditulis ke profiles dan AppUser diperbarui.
@@ -67,19 +67,38 @@ class _BiodataScreenState extends ConsumerState<BiodataScreen> {
       _error = null;
     });
     try {
-      if (SupabaseService.isInitialized && SupabaseService.client != null) {
-        await SupabaseService.client!
-            .from('profiles')
-            .update({
-          'birth_date': _selectedDate!.toIso8601String().split('T').first,
-        }).eq('id', widget.userId);
+      await ref.read(authRepositoryProvider).updateBirthDate(_selectedDate!);
+      if (mounted) {
+        setState(() => _loading = false);
       }
       widget.onComplete();
     } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = 'Gagal menyimpan: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Gagal menyimpan: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _skip() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final defaultDate = DateTime(DateTime.now().year - 18, 1, 1);
+      await ref.read(authRepositoryProvider).updateBirthDate(defaultDate);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+      widget.onComplete();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+      widget.onComplete();
     }
   }
 
@@ -255,7 +274,7 @@ class _BiodataScreenState extends ConsumerState<BiodataScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: TextButton(
-                          onPressed: _loading ? null : widget.onComplete,
+                          onPressed: _loading ? null : _skip,
                           child: Text(
                             'Lewati untuk sekarang',
                             style: AppTypography.bodyMuted,

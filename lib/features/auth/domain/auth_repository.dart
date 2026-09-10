@@ -11,5 +11,13 @@ abstract class AuthRepository {
   Future<AppUser?> loginWithGoogle();
   Future<void> logout();
   Future<void> resetPassword(String email);
+  Future<void> updateBirthDate(DateTime birthDate);
+  Future<void> updateProfile({
+    String? username,
+    String? displayName,
+    String? avatarUrl,
+    String? bio,
+    DateTime? birthDate,
+  });
   AppUser? get currentUser;
 }

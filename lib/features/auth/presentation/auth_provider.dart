@@ -50,6 +50,16 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     }
   }
 
+  Future<void> updateBirthDate(DateTime birthDate) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repository.updateBirthDate(birthDate);
+      state = AsyncValue.data(_repository.currentUser);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
